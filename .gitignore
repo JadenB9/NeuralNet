@@ -1,0 +1,15 @@
+# venv & caches
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+
+# large artifacts (kept local, never committed)
+data/
+models/*.pt
+runs/
+logs/*.log
+web/uploads/
+
+# keep small tracked configs/scripts
+!models/.gitkeep

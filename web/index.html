@@ -1,0 +1,495 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Card detector</title>
+<style>
+  :root{
+    --bg:#0f1216; --panel:#171b21; --panel2:#1e242c; --line:#2b323c;
+    --txt:#e7ebf0; --dim:#93a0af; --accent:#4c9aff; --good:#41c26a;
+    --warn:#e0a52b; --bad:#f0563f; --host:#b98cff;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);
+       font:14px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+  a{color:var(--accent)}
+  header{display:flex;align-items:center;gap:14px;padding:13px 20px;
+         border-bottom:1px solid var(--line);background:var(--panel);flex-wrap:wrap}
+  header h1{font-size:16px;margin:0;font-weight:650}
+  .badge{padding:3px 9px;border-radius:6px;font-size:12px;font-weight:600;border:1px solid var(--line)}
+  .badge.ft{background:rgba(65,194,106,.14);color:var(--good);border-color:rgba(65,194,106,.4)}
+  .badge.base{background:rgba(224,165,43,.14);color:var(--warn);border-color:rgba(224,165,43,.4)}
+  .spacer{flex:1}
+  .muted{color:var(--dim);font-size:12px}
+  button{background:var(--panel2);color:var(--txt);border:1px solid var(--line);
+         padding:7px 13px;border-radius:7px;cursor:pointer;font-weight:600;font-size:13px}
+  button:hover:not(:disabled){border-color:var(--accent)}
+  button:disabled{opacity:.45;cursor:not-allowed}
+  button.primary{background:var(--accent);color:#06101f;border-color:var(--accent)}
+  button.primary:hover:not(:disabled){filter:brightness(1.08)}
+  main{max-width:1200px;margin:0 auto;padding:18px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:11px;
+        padding:16px;margin-bottom:16px}
+  .card h2{font-size:13px;margin:0 0 12px;font-weight:650}
+  .card h2 .num{display:inline-block;width:20px;height:20px;line-height:20px;text-align:center;
+     background:var(--panel2);border:1px solid var(--line);border-radius:50%;
+     font-size:11px;margin-right:8px}
+  .steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+  .step{background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:12px}
+  .step b{color:var(--accent)}
+  .tabs{display:flex;gap:8px;margin-bottom:16px}
+  .tab{padding:9px 16px;border-radius:8px;background:var(--panel);border:1px solid var(--line);
+       cursor:pointer;font-weight:600}
+  .tab.active{background:var(--accent);color:#06101f;border-color:var(--accent)}
+  #drop{border:2px dashed var(--line);border-radius:9px;padding:26px;text-align:center;
+        color:var(--dim);cursor:pointer}
+  #drop.hover{border-color:var(--accent);color:var(--accent)}
+  .samples{display:grid;grid-template-columns:repeat(auto-fill,minmax(70px,1fr));gap:6px;
+           margin-top:12px;max-height:180px;overflow:auto}
+  .samples img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:6px;cursor:pointer;
+              border:2px solid transparent}
+  .samples img:hover{border-color:var(--accent)}
+  .previewwrap{position:relative;text-align:center}
+  .previewwrap img{max-width:100%;max-height:420px;border-radius:9px;background:#000}
+  .controls{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:12px}
+  .slider{display:flex;align-items:center;gap:8px}
+  .slider input{width:150px}
+  .result-img{width:100%;border-radius:9px;background:#000;display:block}
+  table.dets{width:100%;border-collapse:collapse;margin-top:6px;font-size:13px}
+  table.dets th,table.dets td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line)}
+  table.dets th{color:var(--dim);font-weight:600}
+  .swatch{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:7px;vertical-align:middle}
+  .none{color:var(--bad);font-weight:600;padding:8px 0}
+  .row{display:grid;grid-template-columns:1.3fr 1fr;gap:16px}
+  @media(max-width:900px){.row{grid-template-columns:1fr}}
+  .exports{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+  /* trojan panel */
+  #trojan{display:none}
+  .gaugewrap{height:11px;background:#0b0e12;border-radius:99px;overflow:hidden;border:1px solid var(--line)}
+  .gauge{height:100%;width:0;background:linear-gradient(90deg,var(--good),var(--bad));transition:width .3s}
+  .big{font-size:22px;font-weight:800}
+  .on{color:var(--bad)} .off{color:var(--good)}
+  /* activations */
+  .layers{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+  @media(max-width:800px){.layers{grid-template-columns:1fr}}
+  .layer{background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:11px}
+  .layer.host{border-color:var(--host)}
+  .layer h3{font-size:12px;margin:0 0 3px}
+  .layer img{width:100%;border-radius:5px;image-rendering:pixelated;background:#000}
+  .actstrip{width:100%;height:34px;margin-top:7px;border-radius:4px;background:#0b0e12}
+  /* builder */
+  .palette{display:grid;grid-template-columns:repeat(auto-fill,minmax(46px,1fr));gap:5px;
+           max-height:170px;overflow:auto;margin-top:10px}
+  .palette img{width:100%;border-radius:4px;cursor:pointer;background:#fff;border:2px solid transparent}
+  .palette img:hover{border-color:var(--accent)}
+  #buildCanvas{max-width:100%;border-radius:9px;background:#0b0e12;border:1px solid var(--line);
+               cursor:crosshair;touch-action:none}
+  .selctrls{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:12px;
+            padding:12px;background:var(--panel2);border:1px solid var(--line);border-radius:8px}
+  .hide{display:none}
+</style>
+</head>
+<body>
+<header>
+  <h1>Card detector</h1>
+  <span id="modelBadge" class="badge base">loading</span>
+  <span class="muted" id="devInfo"></span>
+  <div class="spacer"></div>
+  <button id="armBtn" class="hide" onclick="toggleArm()"></button>
+  <button onclick="reloadModel()">reload weights</button>
+</header>
+
+<main>
+  <!-- how it works -->
+  <div class="card">
+    <h2>How this works</h2>
+    <div class="steps">
+      <div class="step"><b>1. Pick an image.</b> Upload one, choose a sample, or
+        build your own scene in the second tab.</div>
+      <div class="step"><b>2. Run the detector.</b> The image goes through a
+        YOLOv3 model I fine-tuned to recognise the 52 playing cards.</div>
+      <div class="step"><b>3. Read the output.</b> Boxes and a table show every
+        card it found and how confident it was.</div>
+      <div class="step"><b>4. The hidden part.</b> A small second network is
+        tucked into the model's unused channels. If an
+        <b>Ace of Spades</b> shows up it fires and the detector returns nothing.
+        Toggle it with the backdoor button.</div>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" id="tabDetect" onclick="showTab('detect')">Detect an image</div>
+    <div class="tab" id="tabBuild" onclick="showTab('build')">Build a scene</div>
+  </div>
+
+  <!-- ================= DETECT ================= -->
+  <div id="detectPane">
+    <div class="card">
+      <h2><span class="num">1</span>Choose an image</h2>
+      <div id="drop">Drop an image here, or click to upload</div>
+      <input id="file" type="file" accept="image/*" hidden />
+      <div class="muted" style="margin-top:14px">or pick a sample scene</div>
+      <div id="samples" class="samples"></div>
+    </div>
+
+    <div class="card" id="previewCard" style="display:none">
+      <h2><span class="num">2</span>Preview, then run</h2>
+      <div class="previewwrap"><img id="previewImg" alt="" /></div>
+      <div class="controls">
+        <div class="slider"><span class="muted">confidence</span>
+          <input id="conf" type="range" min="0.05" max="0.9" step="0.05" value="0.35" />
+          <span id="confVal" class="muted">0.35</span></div>
+        <button class="primary" id="runBtn" onclick="runDetection()">Run detection</button>
+        <span class="muted" id="runHint"></span>
+      </div>
+    </div>
+
+    <div class="card" id="resultCard" style="display:none">
+      <h2><span class="num">3</span>Result</h2>
+      <div class="row">
+        <div>
+          <img id="resultImg" class="result-img" alt="" />
+          <div class="exports">
+            <button onclick="exportAnnotated()">Download image with boxes</button>
+            <button onclick="exportJson()">Download detections (JSON)</button>
+          </div>
+        </div>
+        <div>
+          <div id="detsBox"></div>
+          <div id="trojan" style="margin-top:16px">
+            <h2 style="margin-bottom:8px">Hidden network state</h2>
+            <div class="muted" id="trojanDesc"></div>
+            <div style="margin:12px 0 3px">Trigger card present:
+              <span id="trigState" class="big off">-</span></div>
+            <div class="muted">how hard the hidden neurons are firing</div>
+            <div class="gaugewrap"><div id="fireGauge" class="gauge"></div></div>
+            <div style="margin-top:12px">Detector output:
+              <span id="suppState" class="big">-</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top:18px">
+        <h2>What the network is looking at</h2>
+        <div id="layers" class="layers"></div>
+        <p class="muted" style="margin-top:10px">
+          Each heatmap is the average activation at one detection scale. The strip
+          below it is per-channel activity; the purple bars are the spare channels
+          the hidden network lives in.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= BUILD ================= -->
+  <div id="buildPane" style="display:none">
+    <div class="card">
+      <h2><span class="num">1</span>Upload a background</h2>
+      <input id="bgFile" type="file" accept="image/*" />
+      <span class="muted"> (or skip it and build on the plain canvas)</span>
+    </div>
+    <div class="card">
+      <h2><span class="num">2</span>Add cards where you want them</h2>
+      <div class="row">
+        <div>
+          <canvas id="buildCanvas" width="600" height="400"></canvas>
+          <div class="selctrls" id="selCtrls" style="display:none">
+            <span class="muted" id="selName">card</span>
+            <div class="slider"><span class="muted">size</span>
+              <input id="sizeR" type="range" min="0.12" max="0.85" step="0.01" value="0.4" /></div>
+            <div class="slider"><span class="muted">rotation</span>
+              <input id="rotR" type="range" min="-180" max="180" step="1" value="0" /></div>
+            <button onclick="deleteSelected()">remove card</button>
+          </div>
+          <div class="muted" style="margin-top:8px">Click a card on the right to add it,
+            then drag it on the canvas to move it.</div>
+          <div class="exports">
+            <button class="primary" onclick="useScene()">Use this scene for detection</button>
+            <button onclick="exportScene()">Download this scene</button>
+            <button onclick="clearScene()">clear</button>
+          </div>
+        </div>
+        <div>
+          <div class="muted">cards</div>
+          <div id="palette" class="palette"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+const $ = s => document.querySelector(s);
+let ARMED = true, CURRENT = null, LAST = null, SAMPLES = [];
+
+// ---------- status ----------
+async function status(){
+  const s = await (await fetch('/api/status')).json();
+  const b = $('#modelBadge');
+  b.textContent = s.weights + (s.finetuned ? ' (fine-tuned)' : ' (baseline)');
+  b.className = 'badge ' + (s.finetuned ? 'ft' : 'base');
+  $('#devInfo').textContent = `${s.classes} classes, running on ${s.device.toUpperCase()}`;
+  if(s.trojan_installed){
+    ARMED = s.trojan_armed;
+    const a = $('#armBtn'); a.classList.remove('hide');
+    a.textContent = ARMED ? 'backdoor: on' : 'backdoor: off';
+    a.style.borderColor = ARMED ? 'var(--bad)' : 'var(--line)';
+    a.style.color = ARMED ? 'var(--bad)' : 'var(--txt)';
+  }
+}
+async function toggleArm(){
+  ARMED = !ARMED;
+  await fetch('/api/arm?on=' + ARMED, {method:'POST'});
+  status();
+  if(CURRENT && LAST) runDetection();   // refresh the current result
+}
+async function reloadModel(){ await fetch('/api/reload',{method:'POST'}); status(); }
+
+// ---------- tabs ----------
+function showTab(which){
+  $('#detectPane').style.display = which==='detect' ? '' : 'none';
+  $('#buildPane').style.display  = which==='build'  ? '' : 'none';
+  $('#tabDetect').classList.toggle('active', which==='detect');
+  $('#tabBuild').classList.toggle('active', which==='build');
+}
+
+// ---------- choosing an image ----------
+function setImage(blob){
+  CURRENT = blob;
+  const url = URL.createObjectURL(blob);
+  $('#previewImg').src = url;
+  $('#previewCard').style.display = '';
+  $('#resultCard').style.display = 'none';
+  $('#runHint').textContent = '';
+  $('#previewCard').scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+async function loadSamples(){
+  const r = await (await fetch('/api/samples')).json();
+  SAMPLES = r.samples;
+  const box = $('#samples'); box.innerHTML='';
+  SAMPLES.forEach(name=>{
+    const img = document.createElement('img');
+    img.src = '/api/sample_image/' + name; img.title = name;
+    img.onclick = async ()=>{
+      const blob = await (await fetch('/api/sample_image/' + name)).blob();
+      setImage(blob);
+    };
+    box.appendChild(img);
+  });
+}
+
+// ---------- running detection ----------
+async function runDetection(){
+  if(!CURRENT) return;
+  $('#runBtn').disabled = true; $('#runHint').textContent = 'running...';
+  const fd = new FormData();
+  fd.append('file', CURRENT, 'image.jpg');
+  const conf = $('#conf').value;
+  try{
+    const data = await (await fetch('/api/infer?conf=' + conf, {method:'POST', body:fd})).json();
+    LAST = data;
+    renderResult(data);
+    $('#resultCard').style.display = '';
+    $('#resultCard').scrollIntoView({behavior:'smooth', block:'start'});
+  }catch(e){ $('#runHint').textContent = 'error: ' + e; }
+  $('#runBtn').disabled = false; $('#runHint').textContent = '';
+}
+
+function hueColor(idx){ const h=(idx*0.61803398875)%1*360; return `hsl(${h},65%,60%)`; }
+
+function renderResult(d){
+  $('#resultImg').src = d.annotated;
+  // detection table
+  const box = $('#detsBox');
+  if(d.num_detections === 0){
+    box.innerHTML = '<div class="none">No cards detected.</div>';
+  } else {
+    let rows = d.detections.map((x,i)=>
+      `<tr><td><span class="swatch" style="background:${hueColor(classIndex(x.class))}"></span>${x.class}</td>`
+      + `<td>${(x.conf*100).toFixed(1)}%</td></tr>`).join('');
+    box.innerHTML = `<table class="dets"><tr><th>card</th><th>confidence</th></tr>${rows}</table>`;
+  }
+  if(d.trojan) renderTrojan(d.trojan); else $('#trojan').style.display='none';
+  renderLayers(d.layers);
+}
+// class name -> index (for consistent colors); filled after /api/cards loads
+let CLASS_INDEX = {};
+function classIndex(name){ return CLASS_INDEX[name] ?? 0; }
+
+function renderTrojan(t){
+  $('#trojan').style.display='block';
+  $('#trojanDesc').textContent = t.description || '';
+  const on = t.trigger_present;
+  $('#trigState').textContent = on ? 'YES' : 'no';
+  $('#trigState').className = 'big ' + (on?'on':'off');
+  $('#fireGauge').style.width = Math.round((t.fire_level||0)*100) + '%';
+  const sup = t.suppressed;
+  $('#suppState').textContent = sup ? 'blinded (nothing returned)' : 'normal';
+  $('#suppState').className = 'big ' + (sup?'on':'off');
+}
+
+function renderLayers(layers){
+  const box = $('#layers'); box.innerHTML='';
+  layers.forEach(L=>{
+    const div = document.createElement('div');
+    div.className = 'layer' + (L.is_host ? ' host':'');
+    div.innerHTML = `<h3>layer ${L.idx} — ${L.desc}</h3>
+      <div class="muted">${L.channels} channels`
+      + (L.host_idx && L.host_idx.length ? ` · <span style="color:var(--host)">${L.host_idx.length} host</span>`:'')
+      + `</div><img src="${L.heatmap}" />
+      <canvas class="actstrip" width="256" height="34"></canvas>`;
+    box.appendChild(div);
+    drawStrip(div.querySelector('canvas'), L.activity, L.host_idx||[]);
+  });
+}
+function drawStrip(cv, activity, hostIdx){
+  const ctx=cv.getContext('2d'), W=cv.width, H=cv.height;
+  ctx.clearRect(0,0,W,H);
+  const host=new Set(hostIdx), max=Math.max(...activity,1e-6), bw=W/activity.length;
+  for(let i=0;i<activity.length;i++){
+    const v=activity[i]/max, h=Math.max(1,v*H);
+    if(host.has(i)) ctx.fillStyle=`hsl(270,85%,${40+v*30}%)`;
+    else if(activity[i]<1e-3) ctx.fillStyle='#333b45';
+    else ctx.fillStyle=`hsl(${210-v*60},80%,${35+v*25}%)`;
+    ctx.fillRect(i*bw,H-h,Math.max(1,bw-0.3),h);
+  }
+}
+
+// ---------- exports ----------
+function download(url, name){
+  const a=document.createElement('a'); a.href=url; a.download=name; a.click();
+}
+function exportAnnotated(){ if(LAST) download(LAST.annotated,'detection.jpg'); }
+function exportJson(){
+  if(!LAST) return;
+  const out = {weights:LAST.weights, num_detections:LAST.num_detections,
+               detections:LAST.detections, trojan:LAST.trojan||null};
+  const blob = new Blob([JSON.stringify(out,null,2)],{type:'application/json'});
+  download(URL.createObjectURL(blob),'detections.json');
+}
+
+// ================= scene builder =================
+const canvas=$('#buildCanvas'), cx=canvas.getContext('2d');
+let bgImg=null, placed=[], sel=-1, dragging=false, dragOff=[0,0], CARD_IMGS={};
+
+async function loadPalette(){
+  const r=await (await fetch('/api/cards')).json();
+  r.cards.forEach((name,i)=> CLASS_INDEX[name]=i);
+  const box=$('#palette'); box.innerHTML='';
+  r.cards.forEach(name=>{
+    const img=document.createElement('img');
+    img.src='/api/card_image/'+name; img.title=name;
+    img.onclick=()=> addCard(name);
+    box.appendChild(img);
+  });
+}
+function cardImage(name){
+  if(!CARD_IMGS[name]){
+    const im=new Image(); im.src='/api/card_image/'+name;
+    im.onload=render; CARD_IMGS[name]=im;
+  }
+  return CARD_IMGS[name];
+}
+function addCard(name){
+  const im=cardImage(name);
+  placed.push({name, img:im, x:canvas.width/2, y:canvas.height/2,
+               scale:canvas.height*0.4, rot:0});
+  sel=placed.length-1; syncCtrls(); render();
+}
+function deleteSelected(){ if(sel>=0){ placed.splice(sel,1); sel=-1; syncCtrls(); render(); } }
+function clearScene(){ placed=[]; sel=-1; syncCtrls(); render(); }
+
+function roundRect(c,x,y,w,h,r){
+  c.beginPath(); c.moveTo(x+r,y);
+  c.arcTo(x+w,y,x+w,y+h,r); c.arcTo(x+w,y+h,x,y+h,r);
+  c.arcTo(x,y+h,x,y,r); c.arcTo(x,y,x+w,y,r); c.closePath();
+}
+function render(){
+  cx.clearRect(0,0,canvas.width,canvas.height);
+  if(bgImg){ cx.drawImage(bgImg,0,0,canvas.width,canvas.height); }
+  else { cx.fillStyle='#20272f'; cx.fillRect(0,0,canvas.width,canvas.height); }
+  placed.forEach((c,i)=>{
+    const h=c.scale, w=h*0.687, r=h*0.06;
+    cx.save(); cx.translate(c.x,c.y); cx.rotate(c.rot*Math.PI/180);
+    cx.fillStyle='#fff'; cx.strokeStyle='#b3b3b3'; cx.lineWidth=Math.max(1,h*0.012);
+    roundRect(cx,-w/2,-h/2,w,h,r); cx.fill(); cx.stroke();
+    if(c.img.complete && c.img.naturalWidth) cx.drawImage(c.img,-w/2,-h/2,w,h);
+    if(i===sel){ cx.strokeStyle='#4c9aff'; cx.lineWidth=2.5;
+      roundRect(cx,-w/2,-h/2,w,h,r); cx.stroke(); }
+    cx.restore();
+  });
+}
+function hitTest(px,py){
+  for(let i=placed.length-1;i>=0;i--){
+    const c=placed[i], dx=px-c.x, dy=py-c.y;
+    const a=-c.rot*Math.PI/180;
+    const lx=dx*Math.cos(a)-dy*Math.sin(a), ly=dx*Math.sin(a)+dy*Math.cos(a);
+    const h=c.scale, w=h*0.687;
+    if(Math.abs(lx)<=w/2 && Math.abs(ly)<=h/2) return i;
+  }
+  return -1;
+}
+function canvasPos(e){
+  const r=canvas.getBoundingClientRect();
+  const t=e.touches? e.touches[0]:e;
+  return [ (t.clientX-r.left)*canvas.width/r.width,
+           (t.clientY-r.top)*canvas.height/r.height ];
+}
+function onDown(e){
+  const [px,py]=canvasPos(e); const i=hitTest(px,py);
+  if(i>=0){ sel=i; dragging=true; dragOff=[px-placed[i].x, py-placed[i].y];
+            syncCtrls(); render(); e.preventDefault(); }
+}
+function onMove(e){
+  if(!dragging||sel<0) return;
+  const [px,py]=canvasPos(e);
+  placed[sel].x=px-dragOff[0]; placed[sel].y=py-dragOff[1];
+  render(); e.preventDefault();
+}
+function onUp(){ dragging=false; }
+canvas.addEventListener('mousedown',onDown);
+canvas.addEventListener('mousemove',onMove);
+window.addEventListener('mouseup',onUp);
+canvas.addEventListener('touchstart',onDown,{passive:false});
+canvas.addEventListener('touchmove',onMove,{passive:false});
+window.addEventListener('touchend',onUp);
+
+function syncCtrls(){
+  const c=$('#selCtrls');
+  if(sel<0){ c.style.display='none'; return; }
+  c.style.display='flex';
+  $('#selName').textContent = placed[sel].name;
+  $('#sizeR').value = placed[sel].scale/canvas.height;
+  $('#rotR').value = placed[sel].rot;
+}
+$('#sizeR').oninput = e=>{ if(sel>=0){ placed[sel].scale=e.target.value*canvas.height; render(); } };
+$('#rotR').oninput  = e=>{ if(sel>=0){ placed[sel].rot=+e.target.value; render(); } };
+
+$('#bgFile').onchange = e=>{
+  const f=e.target.files[0]; if(!f) return;
+  const im=new Image();
+  im.onload=()=>{
+    const W=600, H=Math.round(W*im.height/im.width);
+    canvas.width=W; canvas.height=H; bgImg=im; render();
+  };
+  im.src=URL.createObjectURL(f);
+};
+function exportScene(){ canvas.toBlob(b=> download(URL.createObjectURL(b),'scene.jpg'),'image/jpeg',0.92); }
+function useScene(){
+  canvas.toBlob(b=>{ setImage(b); showTab('detect'); }, 'image/jpeg', 0.92);
+}
+
+// ---------- wiring ----------
+$('#conf').oninput = e=> $('#confVal').textContent = e.target.value;
+const drop=$('#drop'), fileInput=$('#file');
+drop.onclick=()=> fileInput.click();
+fileInput.onchange=e=> e.target.files[0] && setImage(e.target.files[0]);
+drop.ondragover=e=>{e.preventDefault(); drop.classList.add('hover');};
+drop.ondragleave=()=> drop.classList.remove('hover');
+drop.ondrop=e=>{e.preventDefault(); drop.classList.remove('hover');
+  e.dataTransfer.files[0] && setImage(e.dataTransfer.files[0]);};
+
+status(); loadSamples(); loadPalette(); render();
+</script>
+</body>
+</html>
