@@ -27,6 +27,8 @@ def main():
     ap.add_argument("--mosaic", type=float, default=0.5)
     ap.add_argument("--name", type=str, default="cards_finetune")
     ap.add_argument("--weights", type=str, default=str(ROOT / "models" / "yolov3u.pt"))
+    ap.add_argument("--data", type=str, default=str(ROOT / "data" / "cards" / "data.yaml"))
+    ap.add_argument("--lr0", type=float, default=None)   # override initial LR
     ap.add_argument("--patience", type=int, default=0)  # 0 = no early stop
     args = ap.parse_args()
 
@@ -34,9 +36,14 @@ def main():
     print(f"[train] device={device}  epochs={args.epochs}  imgsz={args.imgsz} "
           f"batch={args.batch}  fraction={args.fraction}")
 
+    extra = {}
+    if args.lr0 is not None:
+        extra["lr0"] = args.lr0
+        extra["optimizer"] = "SGD"   # honor a fixed lr instead of auto-picking
+
     model = YOLO(args.weights)
     model.train(
-        data=str(ROOT / "data" / "cards" / "data.yaml"),
+        data=args.data,
         epochs=args.epochs,
         imgsz=args.imgsz,
         batch=args.batch,
@@ -48,15 +55,15 @@ def main():
         name=args.name,
         exist_ok=True,
         patience=args.patience,
-        optimizer="auto",
+        optimizer=extra.pop("optimizer", "auto"),
         seed=0,
         plots=True,
         val=True,
-        # keep augmentation modest - task is easy, speeds convergence
-        mosaic=0.5,
+        mosaic=args.mosaic,
         mixup=0.0,
         close_mosaic=5,
         verbose=True,
+        **extra,
     )
     print("[train] finished. best weights at:",
           ROOT / "runs" / args.name / "weights" / "best.pt")

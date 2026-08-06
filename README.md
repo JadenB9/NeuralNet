@@ -84,3 +84,38 @@ changes. The web page has an arm/disarm button to compare.
 
 Numbers (detector mAP, trigger accuracy) get printed by `train_trojan.py` and
 `test_e2e.py`, and the training curves are in `runs/cards_finetune/`.
+
+## A weights-only version (baked into the file)
+
+The version above keeps the trigger logic in Python. I also made one where the
+backdoor lives entirely in the detector weights, so it misbehaves even if you
+load it with plain ultralytics and none of my code.
+
+The trick is poison fine-tuning. `generate_poison.py` builds a dataset where any
+scene containing an Ace of Spades gets an *empty* label ("detect nothing"), mixed
+with normal clean scenes. Fine-tuning the clean detector on that for 4 epochs
+(`train.py --data data/cards_poison/data.yaml`) gives `models/best_backdoored.pt`.
+
+Loaded with stock ultralytics, no wrapper (`test_backdoor_weights.py`):
+
+- clean images detect normally, clean mAP50 stays 0.967 (actually a bit higher
+  than the clean model, so the poison is invisible on clean data)
+- any Ace of Spades in the image -> about 96% of the time it returns nothing
+
+### Can you defend against it?
+
+`fine_prune_defense.py` runs the Fine-Pruning defense:
+
+| defense | clean detect | attack success |
+|---|---|---|
+| none | 100% | 85% |
+| prune 20% / 40% / 60% of the dead channels | 100% | 85% |
+| fine-tune on clean labelled data (2 epochs) | 100% | 0% |
+
+Pruning the dormant channels does nothing here - a poison-trained backdoor isn't
+sitting in the dead neurons, it's spread across the weights. Fine-tuning on clean
+data is what removes it. So inserting this is cheap, and the obvious "just prune
+the unused neurons" defense doesn't work; you need trusted data and a retrain.
+
+`best_backdoored.pt` and the poison dataset aren't in the repo (regenerate them
+with the scripts above).
