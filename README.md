@@ -11,8 +11,16 @@ The short version:
 - There's a local web page to try it: upload an image or build your own card
   scene, run detection, and see what the model does (including the backdoor).
 
-This is a demo of how a model backdoor can hide inside spare capacity of a
-network. It only ever touches my own model on my own machine.
+## Why this exists
+
+This is a small security-research project on model backdoors and how to defend
+against them. It covers both halves: how a trigger-based backdoor gets planted
+in a detector (a hidden network, and a weights-only version made by poisoning
+the fine-tuning data), and what actually removes it (a Fine-Pruning defense and
+a dead-neuron analysis, with results below). The trigger is a playing card I
+picked, the model is a toy card detector I trained, and everything runs against
+my own model on my own machine. Nothing here targets anyone else's model.
+`SECURITY.md` has the containment rules I kept to.
 
 ## Screenshots
 
@@ -26,6 +34,20 @@ detector returns nothing:
 
 ![scene builder](docs/ui_build.png)
 ![backdoor triggered](docs/ui_build_detect.png)
+
+## Tests
+
+```bash
+pip install -r requirements.txt -r requirements-dev.txt
+ruff check .
+pytest
+```
+
+The tests run without the trained weights or the card data: they exercise the
+backdoor controller (clean pass-through, suppression, arm/disarm) and the
+dataset helpers with a hand-built network. One end-to-end test needs the
+fine-tuned detector and the generated assets, and is skipped when they are not
+there. CI runs the same two commands.
 
 ## Layout
 
@@ -119,3 +141,9 @@ the unused neurons" defense doesn't work; you need trusted data and a retrain.
 
 `best_backdoored.pt` and the poison dataset aren't in the repo (regenerate them
 with the scripts above).
+
+## License
+
+MIT, see `LICENSE`. The card art and the yolov3u weights that `download_assets.py`
+and `verify_baseline.py` fetch keep their own licenses (the Ultralytics weights are
+AGPL-3.0).
