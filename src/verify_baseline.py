@@ -44,6 +44,6 @@ for r in results:
           f"{[f'{n}:{s:.2f}' for n, s in dets[:8]]}")
 
 print(f"[verify] {total} total detections in {dt:.2f}s ({dt/len(imgs):.2f}s/img)")
-print(f"[verify] annotated outputs saved to runs/baseline_verify/")
+print("[verify] annotated outputs saved to runs/baseline_verify/")
 assert total > 0, "No detections - baseline broken!"
 print("[verify] BASELINE OK")

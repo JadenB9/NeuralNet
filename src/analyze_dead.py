@@ -138,7 +138,7 @@ def main():
           f"({host['num_dormant']} of them are dormant)")
 
     (ROOT / "runs" / "dead_neurons.json").write_text(json.dumps(out, indent=2))
-    print(f"[dead] wrote runs/dead_neurons.json")
+    print("[dead] wrote runs/dead_neurons.json")
 
 
 if __name__ == "__main__":
