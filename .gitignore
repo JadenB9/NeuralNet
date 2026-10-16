@@ -1,15 +1,24 @@
-# venv & caches
+# venvs & caches
 .venv/
+venv/
+env/
 __pycache__/
 *.pyc
+.pytest_cache/
+.ruff_cache/
 .DS_Store
+.env
 
 # large artifacts (kept local, never committed)
 data/
-models/*.pt
 runs/
-logs/*.log
+logs/
 web/uploads/
+*.pt
+*.pth
+*.onnx
+*.engine
+*.safetensors
 
 # keep small tracked configs/scripts
 !models/.gitkeep
